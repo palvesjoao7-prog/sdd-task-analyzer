@@ -1,163 +1,152 @@
+
 """Implementação do sistema TaskAnalyzer."""
-# TaskAnalyzer — Especificação Técnica SDD
 
-## 1. Visão Geral
+from datetime import datetime
+from typing import Any
 
-O TaskAnalyzer é um sistema destinado à análise de tarefas e geração de métricas de produtividade.
 
-O sistema recebe um conjunto de tarefas e calcula informações relacionadas ao tempo de conclusão, atrasos e distribuição das tarefas por prioridade.
+class TaskValidationError(ValueError):
+    """Erro lançado quando os dados de uma tarefa são inválidos."""
 
-A especificação técnica funciona como contrato para orientar o desenvolvimento do sistema e a geração de código assistida por Inteligência Artificial.
 
----
+def analyze_tasks(tasks: list[dict[str, Any]]) -> dict[str, Any]:
+    """Analisa tarefas e retorna métricas de produtividade."""
 
-## 2. Propósito do Sistema
+    if not isinstance(tasks, list):
+        raise TaskValidationError("A entrada deve ser uma lista de tarefas.")
 
-O sistema deverá:
+    priorities = {"baixa", "média", "alta"}
+    statuses = {"pendente", "concluída", "cancelada"}
 
-- Analisar tarefas executadas.
-- Calcular o tempo médio de conclusão.
-- Calcular a taxa de atraso.
-- Identificar tarefas atrasadas.
-- Gerar indicadores por prioridade.
-- Validar os dados recebidos.
-- Retornar métricas de forma estruturada.
+    ids: set[str] = set()
+    completed_times: list[float] = []
+    analyzed_tasks = 0
+    completed_count = 0
+    overdue_count = 0
 
----
+    by_priority: dict[str, dict[str, int]] = {
+        priority: {
+            "total": 0,
+            "concluidas": 0,
+            "pendentes": 0,
+            "canceladas": 0,
+            "atrasadas": 0,
+        }
+        for priority in priorities
+    }
 
-## 3. Entradas
+    for index, task in enumerate(tasks):
+        if not isinstance(task, dict):
+            raise TaskValidationError(
+                f"A tarefa na posição {index} deve ser um dicionário."
+            )
 
-Cada tarefa deverá possuir os seguintes dados:
+        required = {
+            "id", "titulo", "prioridade",
+            "data_criacao", "prazo", "status",
+        }
 
-| Campo | Tipo | Obrigatório | Descrição |
-|---|---|---|---|
-| id | str | Sim | Identificador único da tarefa |
-| titulo | str | Sim | Título da tarefa |
-| prioridade | str | Sim | Prioridade da tarefa |
-| data_criacao | datetime | Sim | Data de criação |
-| data_conclusao | datetime | Não | Data de conclusão |
-| prazo | datetime | Sim | Prazo para conclusão |
-| status | str | Sim | Status da tarefa |
+        missing = required - task.keys()
+        if missing:
+            raise TaskValidationError(
+                f"Tarefa {index}: campos obrigatórios ausentes: "
+                f"{', '.join(sorted(missing))}."
+            )
 
-### Valores permitidos
+        task_id = task["id"]
+        title = task["titulo"]
+        priority = task["prioridade"]
+        created = task["data_criacao"]
+        deadline = task["prazo"]
+        status = task["status"]
+        finished = task.get("data_conclusao")
 
-**Prioridade:**
-- baixa
-- média
-- alta
+        if not isinstance(task_id, str) or not task_id.strip():
+            raise TaskValidationError("O id deve ser um texto não vazio.")
+        if task_id in ids:
+            raise TaskValidationError(f"ID duplicado: {task_id}.")
+        ids.add(task_id)
 
-**Status:**
-- pendente
-- concluída
-- cancelada
+        if not isinstance(title, str) or not title.strip():
+            raise TaskValidationError("O título deve ser um texto não vazio.")
+        if priority not in priorities:
+            raise TaskValidationError(f"Prioridade inválida: {priority}.")
+        if status not in statuses:
+            raise TaskValidationError(f"Status inválido: {status}.")
 
----
+        if not isinstance(created, datetime) or not isinstance(deadline, datetime):
+            raise TaskValidationError(
+                "Data de criação e prazo devem ser objetos datetime."
+            )
 
-## 4. Saídas
+        if finished is not None and not isinstance(finished, datetime):
+            raise TaskValidationError(
+                "A data de conclusão deve ser datetime ou None."
+            )
 
-O sistema deverá retornar as seguintes métricas:
+        if created.tzinfo != deadline.tzinfo:
+            raise TaskValidationError(
+                "As datas de criação e prazo devem usar fusos compatíveis."
+            )
 
-- tempo médio de conclusão;
-- taxa de atraso;
-- quantidade de tarefas analisadas;
-- quantidade de tarefas concluídas;
-- quantidade de tarefas atrasadas;
-- indicadores agrupados por prioridade.
+        if finished is not None and finished.tzinfo != created.tzinfo:
+            raise TaskValidationError(
+                "A data de conclusão deve usar fuso compatível."
+            )
 
-As métricas deverão ser retornadas de maneira estruturada e consistente.
+        if created > deadline:
+            raise TaskValidationError(
+                "A data de criação não pode ser posterior ao prazo."
+            )
 
----
+        if status == "concluída" and finished is None:
+            raise TaskValidationError(
+                "Tarefas concluídas precisam de data de conclusão."
+            )
 
-## 5. Regras de Negócio
+        if status != "concluída" and finished is not None:
+            raise TaskValidationError(
+                "Somente tarefas concluídas podem ter data de conclusão."
+            )
 
-1. Apenas tarefas concluídas poderão ser utilizadas no cálculo do tempo médio de conclusão.
-2. O tempo de conclusão será calculado pela diferença entre a data de conclusão e a data de criação.
-3. Uma tarefa será considerada atrasada quando sua data de conclusão for posterior ao prazo.
-4. Tarefas pendentes não deverão ser consideradas concluídas.
-5. Tarefas canceladas não deverão ser consideradas no cálculo do tempo médio de conclusão.
-6. A taxa de atraso deverá considerar as tarefas aplicáveis à análise.
-7. Os indicadores deverão ser organizados por prioridade.
-8. Dados inválidos deverão gerar erros específicos e mensagens claras.
-9. A divisão por zero deverá ser tratada explicitamente.
-10. O sistema não deverá persistir dados em arquivos ou bancos de dados.
+        if finished is not None and finished < created:
+            raise TaskValidationError(
+                "A data de conclusão não pode anteceder a criação."
+            )
 
----
+        analyzed_tasks += 1
+        metrics = by_priority[priority]
+        metrics["total"] += 1
 
-## 6. Cenários de Aceite
+        if status == "concluída":
+            completed_count += 1
+            metrics["concluidas"] += 1
+            assert finished is not None
+            completed_times.append((finished - created).total_seconds() / 3600)
 
-### 6.1 Cenário 1 — Sucesso
+            if finished > deadline:
+                overdue_count += 1
+                metrics["atrasadas"] += 1
 
-**Dado** um conjunto de tarefas válidas com diferentes prioridades, prazos e status,
+        elif status == "pendente":
+            metrics["pendentes"] += 1
+        else:
+            metrics["canceladas"] += 1
 
-**Quando** o analisador for executado,
+    average_time = (
+        sum(completed_times) / len(completed_times)
+        if completed_times else 0.0
+    )
+    delay_rate = (
+        overdue_count / completed_count * 100
+        if completed_count else 0.0
+    )
 
-**Então** o sistema deverá retornar corretamente:
-
-- tempo médio de conclusão;
-- taxa de atraso;
-- quantidade de tarefas concluídas;
-- quantidade de tarefas atrasadas;
-- indicadores por prioridade.
-
----
-
-### 6.2 Cenário 2 — Erro
-
-**Dado** uma entrada contendo dados inválidos ou uma situação de divisão por zero,
-
-**Quando** o analisador for executado,
-
-**Então** o sistema deverá gerar uma exceção específica e apresentar uma mensagem clara indicando o problema.
-
----
-
-## 7. Test Harness
-
-Os cenários definidos nesta especificação deverão ser transformados em testes automatizados utilizando `pytest`.
-
-Os testes deverão verificar:
-
-- processamento de entradas válidas;
-- cálculo correto das métricas;
-- identificação de tarefas atrasadas;
-- agrupamento por prioridade;
-- tratamento de entradas inválidas;
-- tratamento de divisão por zero.
-
-Os testes deverão funcionar como mecanismo de validação do código gerado por Inteligência Artificial.
-
----
-
-## 8. Critérios de Validação
-
-O código será considerado válido quando:
-
-1. Respeitar o contrato definido nesta especificação.
-2. Passar pelos testes automatizados.
-3. Respeitar as regras definidas no arquivo `CONTEXT_RULES.md`.
-4. Utilizar Python 3.11 ou superior.
-5. Utilizar type hints.
-6. Possuir tratamento adequado de exceções.
-7. Possuir código legível e organizado.
-8. Não implementar comportamentos que não estejam definidos nesta especificação.
-
----
-
-## 9. Restrições
-
-- Não utilizar bibliotecas externas não autorizadas.
-- Não persistir dados em arquivos ou bancos de dados.
-- Não alterar a assinatura das funções públicas sem autorização.
-- Não modificar os cenários de teste sem autorização.
-- Não criar funcionalidades que não estejam especificadas.
-- Não inserir código duplicado ou desnecessário.
-
----
-
-## 10. Objetivo para a Fase 2
-
-Na Fase 2, a especificação será utilizada como base para o desenvolvimento assistido por Inteligência Artificial.
-
-O código deverá ser implementado conforme este contrato e validado pelos testes automatizados.
-
-O desenvolvimento deverá utilizar versionamento com Git e GitHub.
+    return {
+        "quantidade_analisada": analyzed_tasks,
+        "quantidade_concluida": completed_count,
+        "quantidade_atrasada": overdue_count,
+        "tempo_medio_conclusao_horas": average_time,
+        "taxa_atraso_percentual": delay_rate,
+        "por_prioridade": by_priority,
+    }
