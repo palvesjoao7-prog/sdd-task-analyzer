@@ -1,4 +1,3 @@
-"""Implementação do sistema TaskAnalyzer."""
 # TaskAnalyzer — Especificação Técnica SDD
 
 ## 1. Visão Geral
