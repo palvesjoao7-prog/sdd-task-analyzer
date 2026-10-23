@@ -114,3 +114,61 @@ def test_data_de_conclusao_ausente():
 
     with pytest.raises(TaskValidationError, match="data de conclusão"):
         analyze_tasks([tarefa])
+
+def test_tarefa_cancelada_nao_entra_no_tempo_medio():
+    tarefa = criar_tarefa("10", status="cancelada")
+
+    resultado = analyze_tasks([tarefa])
+
+    assert resultado["quantidade_analisada"] == 1
+    assert resultado["quantidade_concluida"] == 0
+    assert resultado["tempo_medio_conclusao_horas"] == 0
+    assert resultado["por_prioridade"]["alta"]["canceladas"] == 1
+
+
+def test_id_vazio():
+    tarefa = criar_tarefa("11")
+    tarefa["id"] = "   "
+
+    with pytest.raises(TaskValidationError, match="id"):
+        analyze_tasks([tarefa])
+
+
+def test_titulo_vazio():
+    tarefa = criar_tarefa("12")
+    tarefa["titulo"] = ""
+
+    with pytest.raises(TaskValidationError, match="título"):
+        analyze_tasks([tarefa])
+
+
+def test_data_de_criacao_invalida():
+    tarefa = criar_tarefa("13")
+    tarefa["data_criacao"] = "2026-01-01"
+
+    with pytest.raises(TaskValidationError, match="datetime"):
+        analyze_tasks([tarefa])
+
+
+def test_data_de_criacao_posterior_ao_prazo():
+    tarefa = criar_tarefa("14")
+    tarefa["data_criacao"] = tarefa["prazo"] + timedelta(days=1)
+
+    with pytest.raises(TaskValidationError, match="posterior ao prazo"):
+        analyze_tasks([tarefa])
+
+
+def test_data_de_conclusao_anterior_a_criacao():
+    tarefa = criar_tarefa("15")
+    tarefa["data_conclusao"] = tarefa["data_criacao"] - timedelta(hours=1)
+
+    with pytest.raises(TaskValidationError, match="anteceder a criação"):
+        analyze_tasks([tarefa])
+
+
+def test_status_invalido():
+    tarefa = criar_tarefa("16")
+    tarefa["status"] = "em andamento"
+
+    with pytest.raises(TaskValidationError, match="Status inválido"):
+        analyze_tasks([tarefa])
