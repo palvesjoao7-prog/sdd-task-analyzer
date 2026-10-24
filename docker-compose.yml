@@ -1,0 +1,6 @@
+
+services:
+  taskanalyzer:
+    build: .
+    container_name: taskanalyzer-tests
+    command: python -m pytest -v
