@@ -172,3 +172,18 @@ def test_status_invalido():
 
     with pytest.raises(TaskValidationError, match="Status inválido"):
         analyze_tasks([tarefa])
+
+def test_prioridade_com_tipo_invalido():
+    tarefa = criar_tarefa("17")
+    tarefa["prioridade"] = ["alta"]
+
+    with pytest.raises(TaskValidationError, match="Prioridade inválida"):
+        analyze_tasks([tarefa])
+
+
+def test_status_com_tipo_invalido():
+    tarefa = criar_tarefa("18")
+    tarefa["status"] = ["pendente"]
+
+    with pytest.raises(TaskValidationError, match="Status inválido"):
+        analyze_tasks([tarefa])

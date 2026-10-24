@@ -1,8 +1,12 @@
 
 """Implementação do sistema TaskAnalyzer."""
 
+import logging
 from datetime import datetime
 from typing import Any
+
+
+logger = logging.getLogger(__name__)
 
 
 class TaskValidationError(ValueError):
@@ -10,10 +14,22 @@ class TaskValidationError(ValueError):
 
 
 def analyze_tasks(tasks: list[dict[str, Any]]) -> dict[str, Any]:
-    """Analisa tarefas e retorna métricas de produtividade."""
+    """Analisa tarefas e retorna métricas de produtividade.
+
+    Args:
+        tasks: Lista de tarefas que serão analisadas.
+
+    Returns:
+        Dicionário com as métricas de produtividade calculadas.
+
+    Raises:
+        TaskValidationError: Se a entrada ou alguma tarefa for inválida.
+    """
 
     if not isinstance(tasks, list):
         raise TaskValidationError("A entrada deve ser uma lista de tarefas.")
+
+    logger.info("Iniciando análise de %d tarefas.", len(tasks))
 
     priorities = {"baixa", "média", "alta"}
     statuses = {"pendente", "concluída", "cancelada"}
@@ -42,8 +58,12 @@ def analyze_tasks(tasks: list[dict[str, Any]]) -> dict[str, Any]:
             )
 
         required = {
-            "id", "titulo", "prioridade",
-            "data_criacao", "prazo", "status",
+            "id",
+            "titulo",
+            "prioridade",
+            "data_criacao",
+            "prazo",
+            "status",
         }
 
         missing = required - task.keys()
@@ -63,15 +83,19 @@ def analyze_tasks(tasks: list[dict[str, Any]]) -> dict[str, Any]:
 
         if not isinstance(task_id, str) or not task_id.strip():
             raise TaskValidationError("O id deve ser um texto não vazio.")
+
         if task_id in ids:
             raise TaskValidationError(f"ID duplicado: {task_id}.")
+
         ids.add(task_id)
 
         if not isinstance(title, str) or not title.strip():
             raise TaskValidationError("O título deve ser um texto não vazio.")
-        if priority not in priorities:
+
+        if not isinstance(priority, str) or priority not in priorities:
             raise TaskValidationError(f"Prioridade inválida: {priority}.")
-        if status not in statuses:
+
+        if not isinstance(status, str) or status not in statuses:
             raise TaskValidationError(f"Status inválido: {status}.")
 
         if not isinstance(created, datetime) or not isinstance(deadline, datetime):
@@ -121,8 +145,12 @@ def analyze_tasks(tasks: list[dict[str, Any]]) -> dict[str, Any]:
         if status == "concluída":
             completed_count += 1
             metrics["concluidas"] += 1
+
             assert finished is not None
-            completed_times.append((finished - created).total_seconds() / 3600)
+
+            completed_times.append(
+                (finished - created).total_seconds() / 3600
+            )
 
             if finished > deadline:
                 overdue_count += 1
@@ -130,16 +158,28 @@ def analyze_tasks(tasks: list[dict[str, Any]]) -> dict[str, Any]:
 
         elif status == "pendente":
             metrics["pendentes"] += 1
+
         else:
             metrics["canceladas"] += 1
 
     average_time = (
         sum(completed_times) / len(completed_times)
-        if completed_times else 0.0
+        if completed_times
+        else 0.0
     )
+
     delay_rate = (
         overdue_count / completed_count * 100
-        if completed_count else 0.0
+        if completed_count
+        else 0.0
+    )
+
+    logger.info(
+        "Análise concluída: %d tarefas analisadas, "
+        "%d concluídas e %d atrasadas.",
+        analyzed_tasks,
+        completed_count,
+        overdue_count,
     )
 
     return {
