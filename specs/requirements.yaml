@@ -1,0 +1,81 @@
+
+project:
+  name: TaskAnalyzer
+  version: "1.0"
+  description: Sistema de análise de tarefas e produtividade
+  methodology: Spec-Driven Development
+
+requirements:
+  functional:
+    - id: RF01
+      description: Analisar uma lista de tarefas.
+
+    - id: RF02
+      description: Calcular o tempo médio de conclusão em horas.
+
+    - id: RF03
+      description: Calcular a taxa percentual de atraso entre tarefas concluídas.
+
+    - id: RF04
+      description: Identificar tarefas concluídas com atraso.
+
+    - id: RF05
+      description: Agrupar métricas por prioridade.
+
+    - id: RF06
+      description: Validar os dados das tarefas e gerar erros específicos.
+
+    - id: RF07
+      description: Tratar divisões por zero retornando 0.0 nas métricas aplicáveis.
+
+  non_functional:
+    - id: RNF01
+      description: Utilizar Python 3.11 ou superior.
+
+    - id: RNF02
+      description: Utilizar type hints e boas práticas da PEP 8.
+
+    - id: RNF03
+      description: Executar testes automatizados com pytest.
+
+    - id: RNF04
+      description: Utilizar GitHub Actions para integração contínua.
+
+    - id: RNF05
+      description: Permitir execução dos testes em contêiner Docker.
+
+    - id: RNF06
+      description: Não persistir dados em arquivos ou bancos de dados.
+
+task:
+  required_fields:
+    - id
+    - titulo
+    - prioridade
+    - data_criacao
+    - prazo
+    - status
+
+  optional_fields:
+    - data_conclusao
+
+  priorities:
+    - baixa
+    - média
+    - alta
+
+  statuses:
+    - pendente
+    - concluída
+    - cancelada
+
+validation:
+  duplicate_ids_allowed: false
+  completion_date_required_when_completed: true
+  invalid_data_raises: TaskValidationError
+
+metrics:
+  average_completion_time_unit: hours
+  delay_rate_unit: percent
+  delay_rate_denominator: completed_tasks
+  group_by: prioridade
